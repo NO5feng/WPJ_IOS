@@ -4,10 +4,10 @@
       "color" : {
         "color-space" : "srgb",
         "components" : {
-          "alpha" : "1.000",
-          "blue" : "0.620",
-          "green" : "0.918",
-          "red" : "1.000"
+          "alpha" : "0.690",
+          "blue" : "0.220",
+          "green" : "0.220",
+          "red" : "0.220"
         }
       },
       "idiom" : "universal"
