@@ -7,6 +7,14 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var searchText = ""
+    @State private var items: [StoredItem] = []
+    @State private var loadErrorMessage: String?
+
+    private var filteredItems: [StoredItem] {
+        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else { return items }
+        return items.filter { $0.name.localizedCaseInsensitiveContains(keyword) }
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -48,10 +56,22 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
 
                             ScrollView(.vertical, showsIndicators: false) {
-                                VStack(spacing: 0) {
-                                    EmptyView()
+                                LazyVStack(spacing: 14) {
+                                    if filteredItems.isEmpty {
+                                        Text("暂无物品")
+                                            .font(.system(size: 15, weight: .medium))
+                                            .foregroundStyle(Color("Colors/grey2"))
+                                            .padding(.top, 12)
+                                    } else {
+                                        ForEach(filteredItems) { item in
+                                            StoredItemRow(item: item)
+                                                .frame(width: min(proxy.size.width * 0.80, 320), height: 68)
+                                        }
+                                    }
                                 }
                                 .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 2)
+                                .padding(.top, 4)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -74,6 +94,33 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .ignoresSafeArea()
+        }
+        .onAppear {
+            loadItems()
+        }
+        .alert(
+            "读取失败",
+            isPresented: Binding(
+                get: { loadErrorMessage != nil },
+                set: { showing in
+                    if !showing { loadErrorMessage = nil }
+                }
+            )
+        ) {
+            Button("知道了", role: .cancel) {
+                loadErrorMessage = nil
+            }
+        } message: {
+            Text(loadErrorMessage ?? "")
+        }
+    }
+
+    private func loadItems() {
+        do {
+            items = try ItemStore.loadAll()
+            loadErrorMessage = nil
+        } catch {
+            loadErrorMessage = "本地数据读取失败，请稍后重试。"
         }
     }
 }
