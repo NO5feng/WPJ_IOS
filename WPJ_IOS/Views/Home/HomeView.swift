@@ -12,6 +12,7 @@ struct HomeView: View {
     @State private var pendingDeleteItem: StoredItem?
     @State private var editingItem: StoredItem?
     @State private var expandedItemID: UUID?
+    @State private var showHeartRain = false
 
     private var filteredItems: [StoredItem] {
         let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -28,10 +29,24 @@ struct HomeView: View {
                 AppTheme.pageBackground
 
                 VStack(alignment: .leading, spacing: panelTopGap) {
-                    Text("我的清单")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(Color("Colors/black"))
-                        .padding(.leading, 20)
+                    HStack(spacing: 12) {
+                        Text("我的清单")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(Color("Colors/black"))
+
+                        Spacer()
+
+                        Button {
+                            triggerHeartRain()
+                        } label: {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundStyle(Color("Colors/pink"))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(showHeartRain)
+                    }
+                    .padding(.horizontal, 20)
 
                     UnevenRoundedRectangle(
                         topLeadingRadius: 34,
@@ -129,6 +144,13 @@ struct HomeView: View {
                     .padding(.horizontal, 34)
                     .transition(.scale(scale: 0.96).combined(with: .opacity))
                 }
+
+                if showHeartRain {
+                    HeartRainOverlay {
+                        showHeartRain = false
+                    }
+                    .transition(.opacity)
+                }
             }
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.18), value: pendingDeleteItem != nil)
@@ -179,6 +201,14 @@ struct HomeView: View {
             self.pendingDeleteItem = nil
             loadErrorMessage = "删除失败，请稍后重试。"
         }
+    }
+
+    private func triggerHeartRain() {
+        guard !showHeartRain else { return }
+
+        pendingDeleteItem = nil
+        expandedItemID = nil
+        showHeartRain = true
     }
 }
 

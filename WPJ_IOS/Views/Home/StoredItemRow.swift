@@ -59,7 +59,7 @@ struct StoredItemRow: View {
             ZStack {
                 if !isExpanded {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(cardOffset > 0 ? Color("Colors/yellow") : Color("Colors/pink"))
+                        .fill(cardOffset > 0 ? Color("Colors/white") : statusColor)
                         .overlay(alignment: cardOffset > 0 ? .leading : .trailing) {
                             HStack(spacing: 8) {
                                 Image(systemName: cardOffset > 0 ? "trash" : "square.and.pencil")
@@ -68,7 +68,7 @@ struct StoredItemRow: View {
                                 Text(cardOffset > 0 ? "删除" : "编辑")
                                     .font(.system(size: 15, weight: .semibold))
                             }
-                            .foregroundStyle(cardOffset > 0 ? Color("Colors/black") : Color("Colors/white"))
+                            .foregroundStyle(Color("Colors/black"))
                             .padding(.horizontal, 18)
                         }
                 }
