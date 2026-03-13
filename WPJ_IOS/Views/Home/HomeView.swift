@@ -9,6 +9,9 @@ struct HomeView: View {
     @State private var searchText = ""
     @State private var items: [StoredItem] = []
     @State private var loadErrorMessage: String?
+    @State private var pendingDeleteItem: StoredItem?
+    @State private var editingItem: StoredItem?
+    @State private var expandedItemID: UUID?
 
     private var filteredItems: [StoredItem] {
         let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -64,8 +67,24 @@ struct HomeView: View {
                                             .padding(.top, 12)
                                     } else {
                                         ForEach(filteredItems) { item in
-                                            StoredItemRow(item: item)
-                                                .frame(width: min(proxy.size.width * 0.80, 320), height: 68)
+                                            let isExpanded = expandedItemID == item.id
+
+                                            StoredItemRow(
+                                                item: item,
+                                                isExpanded: isExpanded,
+                                                onTap: {
+                                                    withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+                                                        expandedItemID = isExpanded ? nil : item.id
+                                                    }
+                                                },
+                                                onDelete: { pendingDeleteItem = item },
+                                                onEdit: { editingItem = item }
+                                            )
+                                            .frame(
+                                                width: min(proxy.size.width * 0.80, 320),
+                                                height: isExpanded ? 220 : 68
+                                            )
+                                            .animation(.spring(response: 0.34, dampingFraction: 0.84), value: isExpanded)
                                         }
                                     }
                                 }
@@ -92,11 +111,33 @@ struct HomeView: View {
                 }
                 .padding(.top, topInset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+                if pendingDeleteItem != nil {
+                    Color.black.opacity(0.16)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            pendingDeleteItem = nil
+                        }
+
+                    DeleteItemDialog(
+                        onCancel: {
+                            pendingDeleteItem = nil
+                        },
+                        onConfirm: deletePendingItem
+                    )
+                    .padding(.horizontal, 34)
+                    .transition(.scale(scale: 0.96).combined(with: .opacity))
+                }
             }
             .ignoresSafeArea()
+            .animation(.easeInOut(duration: 0.18), value: pendingDeleteItem != nil)
         }
         .onAppear {
             loadItems()
+        }
+        .navigationDestination(item: $editingItem) { item in
+            AddItemView(item: item)
         }
         .alert(
             "读取失败",
@@ -121,6 +162,22 @@ struct HomeView: View {
             loadErrorMessage = nil
         } catch {
             loadErrorMessage = "本地数据读取失败，请稍后重试。"
+        }
+    }
+
+    private func deletePendingItem() {
+        guard let pendingDeleteItem else { return }
+
+        do {
+            try ItemStore.delete(id: pendingDeleteItem.id)
+            items.removeAll { $0.id == pendingDeleteItem.id }
+            if expandedItemID == pendingDeleteItem.id {
+                expandedItemID = nil
+            }
+            self.pendingDeleteItem = nil
+        } catch {
+            self.pendingDeleteItem = nil
+            loadErrorMessage = "删除失败，请稍后重试。"
         }
     }
 }

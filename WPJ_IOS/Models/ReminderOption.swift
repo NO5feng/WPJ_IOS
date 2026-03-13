@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum ReminderOption: String, CaseIterable, Identifiable, Codable {
+enum ReminderOption: String, CaseIterable, Identifiable, Codable, Hashable {
     case sameDay
     case oneDayEarlier
     case oneWeekEarlier

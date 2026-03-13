@@ -9,66 +9,20 @@ import UIKit
 
 struct AddItemView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel: AddItemViewModel
 
-    @State private var itemName = ""
-    @State private var remindMe = false
-
-    @State private var productionDate = Calendar.current.startOfDay(for: Date())
-    @State private var expiryDate = Calendar.current.date(
-        byAdding: .year,
-        value: 1,
-        to: Calendar.current.startOfDay(for: Date())
-    ) ?? Calendar.current.startOfDay(for: Date())
-
-    @State private var validityValue = 1
-    @State private var validityUnit: ValidityUnit = .year
-
-    @State private var remindOption: ReminderOption = .sameDay
-    @State private var activeSheet: AddItemSheet?
-    @State private var tempProductionYear = Calendar.current.component(.year, from: Date())
-    @State private var tempProductionMonth = Calendar.current.component(.month, from: Date())
-    @State private var tempProductionDay = Calendar.current.component(.day, from: Date())
-    @State private var tempValidityValue = 1
-    @State private var tempValidityUnit: ValidityUnit = .year
-    @State private var tempRemindOption: ReminderOption = .sameDay
     @State private var showImageSourceDialog = false
     @State private var showPhotoPicker = false
     @State private var showCameraPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var selectedImage: UIImage?
     @State private var showDeleteImageDialog = false
-    @State private var showSaveAlert = false
-    @State private var saveAlertMessage = ""
 
     private let cardWidthRatio: CGFloat = 0.72
     private let cardTextColor = Color("Colors/black").opacity(0.72)
 
-    private var productionDateText: String {
-        Self.dateFormatter.string(from: productionDate)
+    init(item: StoredItem? = nil) {
+        _viewModel = StateObject(wrappedValue: AddItemViewModel(item: item))
     }
-
-    private var expiryDateText: String {
-        Self.dateFormatter.string(from: expiryDate)
-    }
-
-    private var currentYear: Int {
-        Calendar.current.component(.year, from: Date())
-    }
-
-    private var productionYearRange: ClosedRange<Int> {
-        (currentYear - 5)...(currentYear + 5)
-    }
-
-    private var productionDayRange: ClosedRange<Int> {
-        1...daysInMonth(year: tempProductionYear, month: tempProductionMonth)
-    }
-
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
 
     var body: some View {
         GeometryReader { proxy in
@@ -92,7 +46,9 @@ struct AddItemView: View {
                         Spacer()
 
                         Button {
-                            saveItemAndDismiss()
+                            if viewModel.saveItem() {
+                                dismiss()
+                            }
                         } label: {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 18, weight: .semibold))
@@ -109,7 +65,7 @@ struct AddItemView: View {
                 VStack(spacing: 8) {
                     TextField(
                         "",
-                        text: $itemName,
+                        text: $viewModel.itemName,
                         prompt: Text("请输入物品名称")
                             .foregroundStyle(Color("Colors/black").opacity(0.75))
                     )
@@ -132,13 +88,13 @@ struct AddItemView: View {
                     .overlay {
                         VStack(spacing: 0) {
                             Button {
-                                openProductionPicker()
+                                viewModel.openProductionPicker()
                             } label: {
                                 HStack {
                                     Text("生产日期")
                                         .foregroundStyle(cardTextColor)
                                     Spacer()
-                                    Text(productionDateText)
+                                    Text(viewModel.productionDateText)
                                         .foregroundStyle(cardTextColor)
                                 }
                                 .font(.system(size: 16, weight: .medium))
@@ -153,13 +109,13 @@ struct AddItemView: View {
                                 .padding(.horizontal, 10)
 
                             Button {
-                                openExpiryPicker()
+                                viewModel.openExpiryPicker()
                             } label: {
                                 HStack {
                                     Text("有效日期")
                                         .foregroundStyle(cardTextColor)
                                     Spacer()
-                                    Text(expiryDateText)
+                                    Text(viewModel.expiryDateText)
                                         .foregroundStyle(cardTextColor)
                                 }
                                 .font(.system(size: 16, weight: .medium))
@@ -183,15 +139,15 @@ struct AddItemView: View {
 
                             Spacer()
 
-                            if remindMe {
-                                Text(remindOption.title)
+                            if viewModel.remindMe {
+                                Text(viewModel.remindOption.title)
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundStyle(Color("Colors/grey2"))
                                     .padding(.trailing, 8)
                             }
 
-                            RemindToggle(isOn: remindMe) {
-                                handleRemindToggleTap()
+                            RemindToggle(isOn: viewModel.remindMe) {
+                                viewModel.handleRemindToggleTap()
                             }
                         }
                         .padding(.horizontal, 16)
@@ -203,10 +159,10 @@ struct AddItemView: View {
                     .fill(Color("Colors/yellow"))
                     .frame(
                         width: min(proxy.size.width * cardWidthRatio, 360),
-                        height: selectedImage == nil ? 50 : 220
+                        height: viewModel.selectedImage == nil ? 50 : 220
                     )
                     .overlay {
-                        if let selectedImage {
+                        if let selectedImage = viewModel.selectedImage {
                             Image(uiImage: selectedImage)
                                 .resizable()
                                 .scaledToFill()
@@ -229,12 +185,12 @@ struct AddItemView: View {
                     }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 30)
-                .animation(.easeInOut(duration: 0.2), value: selectedImage != nil)
+                .animation(.easeInOut(duration: 0.2), value: viewModel.selectedImage != nil)
                 .onTapGesture {
                     showImageSourceDialog = true
                 }
                 .onLongPressGesture(minimumDuration: 0.45) {
-                    if selectedImage != nil {
+                    if viewModel.selectedImage != nil {
                         showDeleteImageDialog = true
                     }
                 }
@@ -266,7 +222,7 @@ struct AddItemView: View {
         }
         .confirmationDialog("删除图片？", isPresented: $showDeleteImageDialog, titleVisibility: .visible) {
             Button("删除", role: .destructive) {
-                selectedImage = nil
+                viewModel.deleteSelectedImage()
                 selectedPhotoItem = nil
             }
             Button("取消", role: .cancel) { }
@@ -283,20 +239,28 @@ struct AddItemView: View {
                 guard let data = try? await newValue?.loadTransferable(type: Data.self),
                       let uiImage = UIImage(data: data) else { return }
                 await MainActor.run {
-                    selectedImage = uiImage
+                    viewModel.replaceSelectedImage(uiImage)
                 }
             }
         }
         .sheet(isPresented: $showCameraPicker) {
-            CameraPicker(image: $selectedImage)
+            CameraPicker(image: $viewModel.selectedImage)
                 .ignoresSafeArea()
         }
-        .alert("提示", isPresented: $showSaveAlert) {
+        .alert(
+            "提示",
+            isPresented: Binding(
+                get: { viewModel.saveAlertMessage != nil },
+                set: { showing in
+                    if !showing { viewModel.clearSaveAlert() }
+                }
+            )
+        ) {
             Button("知道了", role: .cancel) { }
         } message: {
-            Text(saveAlertMessage)
+            Text(viewModel.saveAlertMessage ?? "")
         }
-        .sheet(item: $activeSheet) { sheet in
+        .sheet(item: $viewModel.activeSheet) { sheet in
             switch sheet {
             case .productionDate:
                 productionDateSheet
@@ -312,17 +276,17 @@ struct AddItemView: View {
         VStack(spacing: 0) {
             AddItemSheetHeader(
                 title: "生产日期",
-                onCancel: { activeSheet = nil },
-                onConfirm: confirmProductionDate
+                onCancel: { viewModel.activeSheet = nil },
+                onConfirm: viewModel.confirmProductionDate
             )
 
             ProductionDatePickerContent(
-                year: $tempProductionYear,
-                month: $tempProductionMonth,
-                day: $tempProductionDay,
-                yearRange: productionYearRange,
-                dayRange: productionDayRange,
-                onYearOrMonthChanged: clampProductionDay
+                year: $viewModel.tempProductionYear,
+                month: $viewModel.tempProductionMonth,
+                day: $viewModel.tempProductionDay,
+                yearRange: viewModel.productionYearRange,
+                dayRange: viewModel.productionDayRange,
+                onYearOrMonthChanged: viewModel.syncProductionDaySelection
             )
 
             Spacer(minLength: 0)
@@ -335,20 +299,15 @@ struct AddItemView: View {
         VStack(spacing: 0) {
             AddItemSheetHeader(
                 title: "保质期止",
-                onCancel: { activeSheet = nil },
-                onConfirm: confirmExpiryOffset
+                onCancel: { viewModel.activeSheet = nil },
+                onConfirm: viewModel.confirmExpiryOffset
             )
 
             ExpiryOffsetPickerContent(
-                value: $tempValidityValue,
-                unit: $tempValidityUnit,
-                onUnitChanged: { newUnit in
-                    let upper = validityRange(for: newUnit).upperBound
-                    if tempValidityValue > upper {
-                        tempValidityValue = upper
-                    }
-                },
-                rangeForUnit: validityRange(for:)
+                value: $viewModel.tempValidityValue,
+                unit: $viewModel.tempValidityUnit,
+                onUnitChanged: viewModel.clampValidityValue(for:),
+                rangeForUnit: viewModel.validityRange(for:)
             )
 
             Spacer(minLength: 0)
@@ -361,11 +320,11 @@ struct AddItemView: View {
         VStack(spacing: 0) {
             AddItemSheetHeader(
                 title: "选择提醒时间",
-                onCancel: { activeSheet = nil },
-                onConfirm: confirmRemindOption
+                onCancel: { viewModel.activeSheet = nil },
+                onConfirm: viewModel.confirmRemindOption
             )
 
-            RemindTimePickerContent(option: $tempRemindOption)
+            RemindTimePickerContent(option: $viewModel.tempRemindOption)
 
             Spacer(minLength: 0)
         }
@@ -373,106 +332,6 @@ struct AddItemView: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func openProductionPicker() {
-        let components = Calendar.current.dateComponents([.year, .month, .day], from: productionDate)
-        tempProductionYear = components.year ?? currentYear
-        tempProductionMonth = components.month ?? 1
-        tempProductionDay = components.day ?? 1
-        clampProductionDay()
-        activeSheet = .productionDate
-    }
-
-    private func openExpiryPicker() {
-        tempValidityValue = validityValue
-        tempValidityUnit = validityUnit
-        activeSheet = .expiryOffset
-    }
-
-    private func handleRemindToggleTap() {
-        if remindMe {
-            remindMe = false
-            return
-        }
-
-        tempRemindOption = remindOption
-        activeSheet = .remindTime
-    }
-
-    private func confirmProductionDate() {
-        productionDate = makeDate(year: tempProductionYear, month: tempProductionMonth, day: tempProductionDay)
-        // 有效日期始终基于生产日期 + 当前有效期偏移量计算。
-        expiryDate = makeExpiryDate(base: productionDate, value: validityValue, unit: validityUnit)
-        activeSheet = nil
-    }
-
-    private func confirmExpiryOffset() {
-        validityValue = tempValidityValue
-        validityUnit = tempValidityUnit
-        expiryDate = makeExpiryDate(base: productionDate, value: validityValue, unit: validityUnit)
-        activeSheet = nil
-    }
-
-    private func confirmRemindOption() {
-        remindOption = tempRemindOption
-        remindMe = true
-        activeSheet = nil
-    }
-
-    private func saveItemAndDismiss() {
-        let trimmedName = itemName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else {
-            saveAlertMessage = "请输入物品名称后再保存"
-            showSaveAlert = true
-            return
-        }
-
-        do {
-            try ItemStore.save(
-                name: trimmedName,
-                productionDate: productionDate,
-                expiryDate: expiryDate,
-                remindEnabled: remindMe,
-                remindOption: remindMe ? remindOption : nil,
-                image: selectedImage
-            )
-            dismiss()
-        } catch {
-            saveAlertMessage = "保存失败，请重试"
-            showSaveAlert = true
-        }
-    }
-
-    private func makeExpiryDate(base: Date, value: Int, unit: ValidityUnit) -> Date {
-        Calendar.current.date(byAdding: unit.component, value: value, to: base) ?? base
-    }
-
-    private func makeDate(year: Int, month: Int, day: Int) -> Date {
-        let components = DateComponents(year: year, month: month, day: day)
-        let date = Calendar.current.date(from: components) ?? Date()
-        return Calendar.current.startOfDay(for: date)
-    }
-
-    private func daysInMonth(year: Int, month: Int) -> Int {
-        let components = DateComponents(year: year, month: month, day: 1)
-        let date = Calendar.current.date(from: components) ?? Date()
-        return Calendar.current.range(of: .day, in: .month, for: date)?.count ?? 30
-    }
-
-    private func clampProductionDay() {
-        let maxDay = daysInMonth(year: tempProductionYear, month: tempProductionMonth)
-        if tempProductionDay > maxDay {
-            tempProductionDay = maxDay
-        }
-    }
-
-    private func validityRange(for unit: ValidityUnit) -> ClosedRange<Int> {
-        switch unit {
-        case .year, .month:
-            return 1...12
-        case .day:
-            return 1...30
-        }
-    }
 }
 
 #Preview {

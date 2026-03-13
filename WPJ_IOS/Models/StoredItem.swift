@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct StoredItem: Codable, Identifiable {
+struct StoredItem: Codable, Identifiable, Hashable {
     let id: UUID
     let name: String
     let productionDate: Date
