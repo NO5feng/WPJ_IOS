@@ -1,0 +1,11 @@
+.DS_Store
+.idea/
+*.iml
+
+WPJ_IOS.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+
+build/
+DerivedData/
+docs/superpowers/
